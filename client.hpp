@@ -14,19 +14,17 @@ public:
     int socket_;
 private:
     class Server & server_;
-    std::thread t;
 
-
-    [[noreturn]]void wait_for_message();
+    //[[noreturn]]void wait_for_message();
 
 public:
     Client() = delete;
     Client& operator=(Client& other) = delete;
     Client(Client& other) = delete;
 
-    ~Client();
     Client(int socket, int name, Server & s);
     void send_to_client(std::string const & s);
+    void read_message();
 };
 
 

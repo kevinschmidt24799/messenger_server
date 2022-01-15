@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <iostream>
+#include <sys/select.h>
 
 [[noreturn]] void Server::start()
 {
@@ -48,18 +49,47 @@
         exit(EXIT_FAILURE);
     }
 
+    fd_set rd;
+
     while(true)
     {
-        if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
-                                 (socklen_t *) &addrlen)) < 0)
+
+        FD_ZERO(&rd);
+        FD_SET(server_fd, &rd);
+        int max = server_fd;
+        for(auto const & c : client_list_)
         {
-            perror("accept");
-            exit(EXIT_FAILURE);
+            if(c.socket_ > max)
+            {
+                max = c.socket_;
+            }
+            FD_SET(c.socket_, &rd);
         }
-        int flags = 1;
-        int r = setsockopt(new_socket, IPPROTO_TCP, TCP_NODELAY, (void *) &flags, sizeof(flags));
-        //std::cout << "new connection\n";
-        client_list_.emplace_back(new_socket, ++person_count, *this);
+
+        std::cout << select(max+1, &rd, nullptr, nullptr, nullptr);
+
+        if(FD_ISSET(server_fd, &rd))
+        {
+            if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
+                                     (socklen_t *) &addrlen)) < 0)
+            {
+                perror("accept");
+                exit(EXIT_FAILURE);
+            }
+            int flags = 1;
+            int r = setsockopt(new_socket, IPPROTO_TCP, TCP_NODELAY, (void *) &flags, sizeof(flags));
+            //std::cout << "new connection\n";
+            client_list_.emplace_back(new_socket, ++person_count, *this);
+        }
+
+        for(auto & c : client_list_)
+        {
+            if(FD_ISSET(c.socket_, &rd))
+            {
+                c.read_message();
+            }
+        }
+
     }
 }
 
