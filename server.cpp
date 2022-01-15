@@ -12,7 +12,6 @@
 
 [[noreturn]] void Server::start()
 {
-    int person_count = 0;
     int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
@@ -79,15 +78,21 @@
             int flags = 1;
             int r = setsockopt(new_socket, IPPROTO_TCP, TCP_NODELAY, (void *) &flags, sizeof(flags));
             //std::cout << "new connection\n";
-            client_list_.emplace_back(new_socket, ++person_count, *this);
+            client_list_.emplace_back(new_socket, *this);
         }
 
-        for(auto & c : client_list_)
+        for(auto c = client_list_.begin(); c != client_list_.end(); )
         {
-            if(FD_ISSET(c.socket_, &rd))
+            if(FD_ISSET(c->socket_, &rd))
             {
-                c.read_message();
+                if(! c->read_message())
+                {
+                    send_message("has left", *c);
+                    c = client_list_.erase(c);
+                    continue;
+                }
             }
+            c++;
         }
 
     }
@@ -95,17 +100,15 @@
 
 void Server::send_message(std::string const & s, Client const & sender)
 {
-    std::string temp = std::to_string(sender.name_) + ": " + s;
+    std::string temp = sender.name_ + ": " + s;
     for(auto & c : client_list_)
     {
         std::cout << "message from: "<<&sender <<" to: "<< &c << '\n';
 
-        if(&c == &sender)
+        if(&c != &sender && !c.name_.empty())
         {
-            std::cout << "skipping self-send\n";
-            continue;
+            c.send_to_client(temp);
         }
-        c.send_to_client(temp);
 
     }
 }

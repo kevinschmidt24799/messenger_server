@@ -9,22 +9,20 @@
 class Client
 {
 public:
-    int name_;
+    std::string name_{""};
 
     int socket_;
 private:
     class Server & server_;
-
-    //[[noreturn]]void wait_for_message();
 
 public:
     Client() = delete;
     Client& operator=(Client& other) = delete;
     Client(Client& other) = delete;
 
-    Client(int socket, int name, Server & s);
+    Client(int socket, Server & s);
     void send_to_client(std::string const & s);
-    void read_message();
+    bool read_message();
 };
 
 
